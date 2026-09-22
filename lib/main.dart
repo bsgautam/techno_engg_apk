@@ -1,15 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:share_plus/share_plus.dart';
 
 void main() {
   runApp(const MaterialApp(
@@ -30,9 +24,7 @@ class _TechnoEngineeringAppState extends State<TechnoEngineeringApp> {
   bool isOffline = false;
   bool isLoading = true;
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
-  final ImagePicker _picker = ImagePicker();
-  
-  // Updated Vercel URL
+
   final String targetUrl = 'https://techno-engg-aktu.vercel.app/';
 
   @override
@@ -40,33 +32,9 @@ class _TechnoEngineeringAppState extends State<TechnoEngineeringApp> {
     super.initState();
     _requestPermissions();
 
-    final WebViewController webController = WebViewController()
+    controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFFFFFFFF))
-      ..addJavaScriptChannel(
-        'FlutterNativeShare',
-        onMessageReceived: (JavaScriptMessage message) async {
-          try {
-            final data = jsonDecode(message.message);
-            final String text = data['text'] ?? '';
-            final String? base64Data = data['imageBase64'];
-
-            if (base64Data != null && base64Data.isNotEmpty) {
-              final cleanBase64 = base64Data.contains(',')
-                  ? base64Data.split(',').last
-                  : base64Data;
-              final bytes = base64Decode(cleanBase64);
-              final tempDir = await getTemporaryDirectory();
-              final file = File('${tempDir.path}/share_image.png');
-              await file.writeAsBytes(bytes);
-
-              await Share.shareXFiles([XFile(file.path)], text: text);
-            } else {
-              await Share.share(text);
-            }
-          } catch (_) {}
-        },
-      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -81,26 +49,6 @@ class _TechnoEngineeringAppState extends State<TechnoEngineeringApp> {
                 isOffline = false;
               }
             });
-
-            webController.runJavaScript('''
-              if (window.FlutterNativeShare) {
-                window.navigator.share = async function(shareData) {
-                  let base64Image = null;
-                  if (shareData.files && shareData.files.length > 0) {
-                    const file = shareData.files[0];
-                    base64Image = await new Promise((resolve) => {
-                      const reader = new FileReader();
-                      reader.onloadend = () => resolve(reader.result);
-                      reader.readAsDataURL(file);
-                    });
-                  }
-                  window.FlutterNativeShare.postMessage(JSON.stringify({
-                    text: shareData.text || shareData.title || '',
-                    imageBase64: base64Image
-                  }));
-                };
-              }
-            ''');
           },
           onWebResourceError: (WebResourceError error) {
             if (error.isForMainFrame ?? true) {
@@ -120,7 +68,6 @@ class _TechnoEngineeringAppState extends State<TechnoEngineeringApp> {
                 url.startsWith('tel:') ||
                 url.startsWith('mailto:') ||
                 url.startsWith('sms:')) {
-              
               final Uri uri = Uri.parse(url);
               try {
                 if (await canLaunchUrl(uri)) {
@@ -140,25 +87,6 @@ class _TechnoEngineeringAppState extends State<TechnoEngineeringApp> {
         ),
       );
 
-    if (webController.platform is AndroidWebViewController) {
-      final androidController = webController.platform as AndroidWebViewController;
-      
-      androidController.setOnPlatformPermissionRequest((request) {
-        request.grant();
-      });
-
-      androidController.setOnShowFileSelector((FileSelectorParams params) async {
-        try {
-          final XFile? photo = await _picker.pickImage(source: ImageSource.gallery);
-          if (photo != null) {
-            return [Uri.file(photo.path).toString()];
-          }
-        } catch (_) {}
-        return [];
-      });
-    }
-
-    controller = webController;
     _checkInitialConnectivity();
 
     _connectivitySubscription = Connectivity()
