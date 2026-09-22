@@ -32,8 +32,8 @@ class _TechnoEngineeringAppState extends State<TechnoEngineeringApp> {
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
   final ImagePicker _picker = ImagePicker();
   
-  // Website URL yaha update kar sakte hain
-  final String targetUrl = 'https://5aman.netlify.app/';
+  // Updated Vercel URL
+  final String targetUrl = 'https://techno-engg-aktu.vercel.app/';
 
   @override
   void initState() {
